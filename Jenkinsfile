@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         RENDER_API_KEY = 'rnd_7Cfja9TYaUEgYunyrttsg5YiBonR'
-        RENDER_SERVICE_ID = 'your-actual-render-service-id' // <- replace this
+        RENDER_SERVICE_ID = 'C55xybxwt8VqOXJlNWR1czczY2dmMjFn'
     }
 
     stages {
@@ -17,9 +17,6 @@ pipeline {
             steps {
                 sh 'echo "Validating HTML files..."'
                 sh 'find . -name "*.html" | xargs ls -la'
-                // Optionally validate HTML
-                // sh 'npm install -g html-validator-cli'
-                // sh 'find . -name "*.html" -exec html-validator --file {} \\;'
             }
         }
 
