@@ -25,23 +25,16 @@ pipeline {
 
         stage('Deploy to Render') {
             steps {
-                script {
-                    echo 'Triggering deployment to Render...'
-                    withCredentials([string(credentialsId: 'render-api-token', variable: 'RENDER_API_KEY')]) {
-                        def deployUrl = "https://api.render.com/deploy/srv-d007tn7gi27c73b0pbk0?key=" + RENDER_API_KEY
-                        def safeDeployUrl = deployUrl.replace(RENDER_API_KEY, '****')
-                        echo "Deploy URL: ${safeDeployUrl}"
-
-                        powershell """
-                        try {
-                            \$response = Invoke-RestMethod -Uri '${deployUrl}' -Method Post -ContentType 'application/json' -Body '{}'
-                            Write-Output \$response
-                        } catch {
-                            Write-Error 'Error in deployment trigger: ' + \$_.Exception.Message
-                            exit 1
-                        }
-                        """
+                withCredentials([string(credentialsId: 'render-api-token', variable: 'RENDER_API_KEY')]) {
+                    powershell """
+                    try {
+                        \$response = Invoke-RestMethod -Uri "https://api.render.com/deploy/srv-d007tn7gi27c73b0pbk0?key=$env:RENDER_API_KEY" -Method Post -ContentType 'application/json' -Body '{}'
+                        Write-Output \$response
+                    } catch {
+                        Write-Error 'Error in deployment trigger: ' + \$_.Exception.Message
+                        exit 1
                     }
+                    """
                 }
             }
         }
