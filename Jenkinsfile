@@ -1,31 +1,38 @@
 pipeline {
     agent any
-
+    
     environment {
+        // Use credentials binding for security
+        RENDER_API_KEY = credentials('render-api-token')
+        // Your actual Render service ID
         RENDER_SERVICE_ID = 'srv-d007tn7gi27c73b0pbk0'
+        // The name of your site in Render
         RENDER_SITE_NAME = 'tastebuds-restaurant'
     }
-
+    
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-
+        
         stage('Prepare Deployment') {
             steps {
+                // Create deployment directory structure using Windows commands
                 bat '''
                 if not exist deploy mkdir deploy
                 xcopy /E /I /Y app\\* deploy\\
                 '''
+                
+                // Validate files were copied correctly
                 bat '''
                 echo "Verifying deployment files..."
                 dir deploy
                 '''
             }
         }
-
+        
         stage('Deploy to Render') {
             steps {
                 script {
@@ -33,10 +40,22 @@ pipeline {
                     withCredentials([string(credentialsId: 'render-api-token', variable: 'RENDER_API_KEY')]) {
                         def deployHookUrl = "https://api.render.com/deploy/${RENDER_SERVICE_ID}?key=${RENDER_API_KEY}"
 
+                        // Log the deploy URL for visibility
+                        echo "Deploy URL: ${deployHookUrl}"
+
+                        // Capture the full output of the request
                         def response = bat(script: """
-                            powershell -command "Invoke-RestMethod -Uri '${deployHookUrl}' -Method Post -ContentType 'application/json' -Body '{}'"
+                            powershell -command "
+                                try {
+                                    \$response = Invoke-RestMethod -Uri '${deployHookUrl}' -Method Post -ContentType 'application/json' -Body '{}'
+                                    Write-Output \$response
+                                } catch {
+                                    Write-Error 'Error in deployment trigger: ' + \$_.Exception.Message
+                                }
+                            "
                         """, returnStdout: true).trim()
 
+                        // Log the response to understand what's happening
                         echo "Deployment triggered: ${response}"
 
                         // Check deployment status
@@ -74,7 +93,7 @@ pipeline {
             }
         }
     }
-
+    
     post {
         success {
             echo "Pipeline executed successfully!"
@@ -85,6 +104,7 @@ pipeline {
         }
         always {
             echo "Pipeline completed at ${new Date()}"
+            // Clean up deployment directory
             bat 'rmdir /S /Q deploy || exit 0'
         }
     }
