@@ -1,80 +1,35 @@
 pipeline {
     agent any
 
-    environment {
-        RENDER_API_KEY = 'rnd_7Cfja9TYaUEgYunyrttsg5YiBonR'
-        RENDER_SERVICE_ID = 'C55xybxwt8VqOXJlNWR1czczY2dmMjFn'
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Clone Code') {
             steps {
-                checkout scm
+                git 'https://github.com/your-username/ci-cd-js-project.git'
             }
         }
 
-        stage('Validation') {
+        stage('Install') {
             steps {
-                sh 'echo "Validating HTML files..."'
-                sh 'find . -name "*.html" | xargs ls -la'
+                sh 'npm install'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'npm test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t ci-cd-js-app .'
             }
         }
 
         stage('Deploy to Render') {
             steps {
-                script {
-                    echo "Triggering deployment to Render..."
-
-                    def response = httpRequest(
-                        url: "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys",
-                        httpMode: 'POST',
-                        contentType: 'APPLICATION_JSON',
-                        customHeaders: [[name: 'Authorization', value: "Bearer ${RENDER_API_KEY}"]],
-                        validResponseCodes: '200:299'
-                    )
-
-                    def deployId = readJSON(text: response.content).id
-                    echo "Deployment triggered with ID: ${deployId}"
-
-                    def deployStatus = "created"
-                    def maxAttempts = 30
-                    def attempts = 0
-
-                    while (deployStatus != "live" && attempts < maxAttempts) {
-                        sleep(10)
-                        attempts++
-
-                        def statusResponse = httpRequest(
-                            url: "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${deployId}",
-                            httpMode: 'GET',
-                            contentType: 'APPLICATION_JSON',
-                            customHeaders: [[name: 'Authorization', value: "Bearer ${RENDER_API_KEY}"]],
-                            validResponseCodes: '200:299'
-                        )
-
-                        deployStatus = readJSON(text: statusResponse.content).status
-                        echo "Deployment status: ${deployStatus} (attempt ${attempts}/${maxAttempts})"
-                    }
-
-                    if (deployStatus == "live") {
-                        echo "Deployment successful!"
-                    } else {
-                        error "Deployment failed or timed out"
-                    }
-                }
+                sh 'curl -X POST https://api.render.com/deploy/srv-RENDER_SERVICE_ID?key=RENDER_API_KEY'
             }
-        }
-    }
-
-    post {
-        success {
-            echo "Pipeline executed successfully!"
-        }
-        failure {
-            echo "Pipeline execution failed!"
-        }
-        always {
-            echo "Pipeline completed at ${new Date()}"
         }
     }
 }
